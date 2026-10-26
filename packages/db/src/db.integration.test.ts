@@ -34,8 +34,11 @@ describe('db schema', () => {
       await db.insert(notificationDeliveries).values(row);
 
       await expect(db.insert(notificationDeliveries).values(row)).rejects.toMatchObject({
-        code: '23505',
-        constraint_name: 'notification_deliveries_event_id_channel_key',
+        // drizzle wraps the driver error; the Postgres error is on `cause`
+        cause: {
+          code: '23505',
+          constraint_name: 'notification_deliveries_event_id_channel_key',
+        },
       });
 
       // Same event on another channel is allowed.
