@@ -110,9 +110,12 @@ jobs:
           cache: pnpm
 
       - uses: anthropics/claude-code-action@v1
+        id: claude
         if: steps.guard.outputs.run == 'true'
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # The failed CI run was triggered by the agent's own push, so the actor is claude[bot].
+          allowed_bots: claude
           prompt: |
             CI failed on branch `${{ env.BRANCH }}` (PR #${{ steps.guard.outputs.pr }}).
             This is autofix attempt ${{ steps.guard.outputs.attempt }} of ${{ env.MAX_ATTEMPTS }}.
@@ -144,7 +147,11 @@ jobs:
         run: |
           report="$RUNNER_TEMP/autofix-report.md"
           {
-            echo "$MARKER"
+            # Only count the attempt if the agent actually worked; a setup failure
+            # can't push, so it can't cause a loop.
+            if [ -s "$report" ] || [ "${{ steps.claude.outcome }}" = "success" ]; then
+              echo "$MARKER"
+            fi
             echo "### CI autofix, attempt ${{ steps.guard.outputs.attempt }}/$MAX_ATTEMPTS"
             echo
             echo "Failed run: ${{ github.event.workflow_run.html_url }}"
