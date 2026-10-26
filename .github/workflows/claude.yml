@@ -1,6 +1,6 @@
 name: Claude Code
 
-# Runs only when someone with write access mentions @claude in a comment.
+# Runs only when the repo owner mentions @claude in a comment.
 on:
   issue_comment:
     types: [created]
@@ -12,9 +12,11 @@ on:
 jobs:
   claude:
     if: |
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude'))
+      github.actor == 'agusheryanto182' && (
+        (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude'))
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
