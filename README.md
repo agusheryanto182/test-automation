@@ -20,21 +20,21 @@ pnpm db:migrate
 pnpm dev
 ```
 
-| Service | URL |
-|---|---|
-| Web app | http://localhost:3000 |
+| Service             | URL                                    |
+| ------------------- | -------------------------------------- |
+| Web app             | http://localhost:3000                  |
 | RabbitMQ management | http://localhost:15672 (guest / guest) |
-| Mailpit (inbox) | http://localhost:8025 |
+| Mailpit (inbox)     | http://localhost:8025                  |
 
 ## Scripts
 
-| Command | Description |
-|---|---|
-| `pnpm dev` | Run web and worker in watch mode |
-| `pnpm test` | Run all tests (infra must be running) |
-| `pnpm lint` | Lint all packages |
-| `pnpm typecheck` | Type-check all packages |
-| `pnpm db:migrate` | Apply database migrations |
+| Command           | Description                           |
+| ----------------- | ------------------------------------- |
+| `pnpm dev`        | Run web and worker in watch mode      |
+| `pnpm test`       | Run all tests (infra must be running) |
+| `pnpm lint`       | Lint all packages                     |
+| `pnpm typecheck`  | Type-check all packages               |
+| `pnpm db:migrate` | Apply database migrations             |
 
 ## Project status
 

@@ -1,0 +1,11 @@
+{
+  "name": "@app/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "migrate": "echo No migrations yet",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  }
+}

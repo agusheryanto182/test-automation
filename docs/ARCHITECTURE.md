@@ -38,22 +38,27 @@ docker-compose.yml
 
 All names live in `packages/shared/src/topology.ts`. Both apps assert the topology on startup (idempotent).
 
-| Name | Type | Notes |
-|---|---|---|
-| `events` | topic exchange, durable | all domain events |
-| `notifications` | queue, durable | bound to `events` with `order.created`; DLX = `notifications.dlx` |
-| `notifications.retry.5s` / `.30s` / `.2m` | queues, durable | `x-message-ttl` set; DLX routes back to `notifications` |
-| `notifications.dlx` | direct exchange | dead-letter target |
-| `notifications.dlq` | queue, durable | final resting place for failed messages |
+| Name                                      | Type                    | Notes                                                             |
+| ----------------------------------------- | ----------------------- | ----------------------------------------------------------------- |
+| `events`                                  | topic exchange, durable | all domain events                                                 |
+| `notifications`                           | queue, durable          | bound to `events` with `order.created`; DLX = `notifications.dlx` |
+| `notifications.retry.5s` / `.30s` / `.2m` | queues, durable         | `x-message-ttl` set; DLX routes back to `notifications`           |
+| `notifications.dlx`                       | direct exchange         | dead-letter target                                                |
+| `notifications.dlq`                       | queue, durable          | final resting place for failed messages                           |
 
 ### Message format
 
 ```ts
 {
-  eventId: string;      // uuid, idempotency key
-  type: "order.created";
-  occurredAt: string;   // ISO 8601
-  payload: { orderId: string; customerEmail: string; item: string; amount: number };
+  eventId: string; // uuid, idempotency key
+  type: 'order.created';
+  occurredAt: string; // ISO 8601
+  payload: {
+    orderId: string;
+    customerEmail: string;
+    item: string;
+    amount: number;
+  }
 }
 ```
 
