@@ -31,7 +31,10 @@ pnpm typecheck
 - Worker: manual ack only. Never `nack(requeue=true)`, because it causes hot loops. Use the retry queues.
 - Do not edit existing migrations; add a new one.
 - Log with pino and include `eventId` whenever one is available. No `console.log`.
-- Keep PRs small: one issue per PR, branch named `feat/<issue-number>-<slug>` or `fix/<issue-number>-<slug>`.
+- Keep PRs small: one issue per PR. PRs target `develop`, never `main`.
+- Branches: the GitHub Action creates `claude/issue-<number>-*` (a PR to `develop` is opened and auto-merged once CI passes). Humans use `feat/<issue-number>-<slug>` or `fix/<issue-number>-<slug>`.
+- Before pushing, run `pnpm lint && pnpm typecheck && pnpm test`. CI runs the same commands and must pass. Run `pnpm format` to fix Prettier issues.
+- You cannot edit `.github/workflows/`. If a change there is needed, say so in your comment.
 - Conventional commits (`feat:`, `fix:`, `test:`, `chore:`, `docs:`).
 
 ## Definition of done
