@@ -20,6 +20,7 @@ Single user, no auth (MVP).
 ## Features (MVP)
 
 ### Web (Next.js + tRPC)
+
 - Create order form (validated with zod).
 - Order list with notification statuses (auto-refresh every 2s).
 - Order detail page: notification attempts, last error.
@@ -27,6 +28,7 @@ Single user, no auth (MVP).
 - Settings: webhook URL (stored in DB), toggle email/webhook channels.
 
 ### Worker (Node + amqplib)
+
 - Consume `order.created` from queue `notifications`.
 - Validate payload with the shared zod schema; invalid payload → straight to DLQ (no retry).
 - Channels:
@@ -37,6 +39,7 @@ Single user, no auth (MVP).
 - Graceful shutdown on SIGTERM/SIGINT.
 
 ### Shared
+
 - Event types and zod schemas shared by web and worker.
 
 ## Non-functional
