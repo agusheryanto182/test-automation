@@ -23,6 +23,34 @@ jobs:
       )
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # Same services as ci.yml, so the agent can run integration tests before pushing.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+          POSTGRES_DB: app
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U app -d app"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      rabbitmq:
+        image: rabbitmq:3-management
+        ports: ['5672:5672']
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 10s --health-timeout 10s --health-retries 10
+      mailpit:
+        image: axllent/mailpit:latest
+        ports: ['1025:1025', '8025:8025']
+    env:
+      DATABASE_URL: postgres://app:app@localhost:5432/app
+      RABBITMQ_URL: amqp://guest:guest@localhost:5672
+      SMTP_HOST: localhost
+      SMTP_PORT: 1025
+      SMTP_FROM: notifications@example.com
+      LOG_LEVEL: info
     permissions:
       contents: write
       pull-requests: write
