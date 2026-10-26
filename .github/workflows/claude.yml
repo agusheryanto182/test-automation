@@ -34,6 +34,14 @@ jobs:
         with:
           fetch-depth: 1
 
+      # The agent runs pnpm itself; keep in sync with packageManager in package.json.
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
       - uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
