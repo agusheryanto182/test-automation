@@ -1,0 +1,154 @@
+name: CI Autofix
+
+# When CI fails on a claude/** branch: let Claude find the root cause, explain it
+# on the PR, and push a fix. At most MAX_ATTEMPTS per PR, then label needs-human.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+concurrency:
+  group: ci-autofix-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: false
+
+jobs:
+  autofix:
+    if: |
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.event == 'push' &&
+      startsWith(github.event.workflow_run.head_branch, 'claude/') &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      BRANCH: ${{ github.event.workflow_run.head_branch }}
+      RUN_ID: ${{ github.event.workflow_run.id }}
+      MAX_ATTEMPTS: 2
+      MARKER: '<!-- ci-autofix -->'
+      # Same values as ci.yml, so the agent can run integration tests.
+      DATABASE_URL: postgres://app:app@localhost:5432/app
+      RABBITMQ_URL: amqp://guest:guest@localhost:5672
+      SMTP_HOST: localhost
+      SMTP_PORT: 1025
+      SMTP_FROM: notifications@example.com
+      LOG_LEVEL: info
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+          POSTGRES_DB: app
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U app -d app"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      rabbitmq:
+        image: rabbitmq:3-management
+        ports: ['5672:5672']
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 10s --health-timeout 10s --health-retries 10
+      mailpit:
+        image: axllent/mailpit:latest
+        ports: ['1025:1025', '8025:8025']
+    steps:
+      - name: Find PR and count attempts
+        id: guard
+        run: |
+          pr=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number')
+          if [ -z "$pr" ]; then
+            echo "No open PR for $BRANCH, skipping"
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          attempts=$(gh api "repos/$GH_REPO/issues/$pr/comments" --paginate \
+            --jq "[.[] | select(.body | contains(\"$MARKER\"))] | length" | awk '{s+=$1} END {print s+0}')
+          echo "pr=$pr" >> "$GITHUB_OUTPUT"
+          echo "attempt=$((attempts + 1))" >> "$GITHUB_OUTPUT"
+          if [ "$attempts" -ge "$MAX_ATTEMPTS" ]; then
+            gh label create needs-human --color B60205 \
+              --description "Automation gave up; needs a person" --force
+            gh pr edit "$pr" --add-label needs-human || \
+              gh api -X POST "repos/$GH_REPO/issues/$pr/labels" -f "labels[]=needs-human"
+            gh pr comment "$pr" --body "CI is still failing after $MAX_ATTEMPTS autofix attempts. Stopping automation, so a person needs to look at this. Latest failed run: ${{ github.event.workflow_run.html_url }}"
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "run=true" >> "$GITHUB_OUTPUT"
+
+      - name: Save failed CI log
+        if: steps.guard.outputs.run == 'true'
+        run: |
+          gh run view "$RUN_ID" --log-failed \
+            | sed -E 's/\x1b\[[0-9;]*m//g' | tail -n 400 > "$RUNNER_TEMP/ci-failure.log"
+          wc -l "$RUNNER_TEMP/ci-failure.log"
+
+      # persist-credentials: false so pushes use the Claude App token set up by the
+      # action, not GITHUB_TOKEN (GITHUB_TOKEN pushes don't trigger CI again).
+      - uses: actions/checkout@v5
+        if: steps.guard.outputs.run == 'true'
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v4
+        if: steps.guard.outputs.run == 'true'
+      - uses: actions/setup-node@v5
+        if: steps.guard.outputs.run == 'true'
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: anthropics/claude-code-action@v1
+        if: steps.guard.outputs.run == 'true'
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            CI failed on branch `${{ env.BRANCH }}` (PR #${{ steps.guard.outputs.pr }}).
+            This is autofix attempt ${{ steps.guard.outputs.attempt }} of ${{ env.MAX_ATTEMPTS }}.
+            The failed CI log is at ${{ runner.temp }}/ci-failure.log.
+            Postgres, RabbitMQ and Mailpit are running, and the env vars are set.
+
+            1. Read the log and find the root cause. Read the relevant code; don't guess.
+            2. Write a short report to ${{ runner.temp }}/autofix-report.md:
+               root cause, the fix, and how you verified it. Do not commit this file.
+            3. If the failure comes from infrastructure or `.github/workflows/` (which
+               you cannot edit), do not change code. Explain it in the report and stop.
+            4. Otherwise fix it. Never delete, skip or weaken tests or assertions to make
+               them pass. Fix the code, or fix a test only when the test itself is wrong,
+               and say why in the report.
+            5. Run `pnpm install && pnpm lint && pnpm typecheck && pnpm test`. Run
+               `pnpm format` first if lint fails on formatting.
+            6. Only when all of them pass: commit with a conventional commit message
+               and `git push origin HEAD`. If they still fail, don't push; say so in the report.
+
+            Follow CLAUDE.md.
+          claude_args: |
+            --model claude-sonnet-5-5
+            --max-turns 25
+            --add-dir ${{ runner.temp }}
+            --allowedTools "Read,Write,Edit,Glob,Grep,Bash(pnpm:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*)"
+
+      - name: Post report on the PR
+        if: always() && steps.guard.outputs.run == 'true'
+        run: |
+          report="$RUNNER_TEMP/autofix-report.md"
+          {
+            echo "$MARKER"
+            echo "### CI autofix, attempt ${{ steps.guard.outputs.attempt }}/$MAX_ATTEMPTS"
+            echo
+            echo "Failed run: ${{ github.event.workflow_run.html_url }}"
+            echo
+            if [ -s "$report" ]; then cat "$report"; else echo "The agent did not write a report. See the job log: $GITHUB_SERVER_URL/$GH_REPO/actions/runs/$GITHUB_RUN_ID"; fi
+          } > "$RUNNER_TEMP/comment.md"
+          gh pr comment "${{ steps.guard.outputs.pr }}" --body-file "$RUNNER_TEMP/comment.md"
