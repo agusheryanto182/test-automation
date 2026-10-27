@@ -12,7 +12,10 @@
   "dependencies": {
     "@app/db": "workspace:^",
     "@app/shared": "workspace:*",
+    "@tanstack/react-query": "^5",
+    "@trpc/client": "^11",
     "@trpc/server": "^11",
+    "@trpc/tanstack-react-query": "^11",
     "amqplib": "^2.2.0",
     "drizzle-orm": "^0.45.4",
     "next": "^15.1.0",
