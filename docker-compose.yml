@@ -1,3 +1,5 @@
+# Host ports can be overridden with env vars, so CI runs never clash with a
+# stack already running (dev-bot sets them per run in .github/dev-bot.sh).
 services:
   postgres:
     image: postgres:16
@@ -6,7 +8,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-app}
       POSTGRES_DB: ${POSTGRES_DB:-app}
     ports:
-      - '5432:5432'
+      - '${PG_PORT:-5432}:5432'
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -21,8 +23,8 @@ services:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
     ports:
-      - '5672:5672'
-      - '15672:15672'
+      - '${RABBITMQ_PORT:-5672}:5672'
+      - '${RABBITMQ_UI_PORT:-15672}:15672'
     healthcheck:
       test: ['CMD', 'rabbitmq-diagnostics', '-q', 'ping']
       interval: 10s
@@ -32,8 +34,8 @@ services:
   mailpit:
     image: axllent/mailpit:latest
     ports:
-      - '1025:1025'
-      - '8025:8025'
+      - '${SMTP_PORT:-1025}:1025'
+      - '${MAILPIT_UI_PORT:-8025}:8025'
     healthcheck:
       test: ['CMD', '/mailpit', 'readyz']
       interval: 10s

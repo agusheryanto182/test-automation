@@ -34,7 +34,8 @@ pnpm typecheck
 - Keep PRs small: one issue per PR. PRs target `develop`, never `main`.
 - Branches: the GitHub Action creates `claude/issue-<number>-*` (a PR to `develop` is opened and auto-merged once CI passes). Humans use `feat/<issue-number>-<slug>` or `fix/<issue-number>-<slug>`.
 - Before pushing, run `pnpm lint && pnpm typecheck && pnpm test`. CI runs the same commands and must pass. Run `pnpm format` to fix Prettier issues.
-- You cannot edit `.github/workflows/`. If a change there is needed, say so in your comment.
+- You cannot edit `.github/`. If a change there is needed, say so in your comment.
+- In CI, Postgres, RabbitMQ and Mailpit are already running and their env vars are set (see `.github/dev-bot.sh`).
 - Conventional commits (`feat:`, `fix:`, `test:`, `chore:`, `docs:`).
 
 ## Definition of done
