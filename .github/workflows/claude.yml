@@ -1,7 +1,6 @@
+# Managed by dev-bot (https://github.com/agusheryanto182/dev-bot). Re-run setup-repo.sh to update.
 name: Claude Code
 
-# Runs only for the repo owner: when they add the `claude` label to an issue,
-# or mention @claude in a comment.
 on:
   issues:
     types: [labeled]
@@ -12,72 +11,19 @@ on:
   pull_request_review:
     types: [submitted]
 
+permissions: {}
+
 jobs:
   claude:
-    if: |
-      github.actor == 'agusheryanto182' && (
-        (github.event_name == 'issues' && github.event.label.name == 'claude') ||
-        (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
-        (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
-        (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude'))
-      )
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    # Same services as ci.yml, so the agent can run integration tests before pushing.
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: app
-          POSTGRES_PASSWORD: app
-          POSTGRES_DB: app
-        ports: ['5432:5432']
-        options: >-
-          --health-cmd "pg_isready -U app -d app"
-          --health-interval 5s --health-timeout 5s --health-retries 10
-      rabbitmq:
-        image: rabbitmq:3-management
-        ports: ['5672:5672']
-        options: >-
-          --health-cmd "rabbitmq-diagnostics -q ping"
-          --health-interval 10s --health-timeout 10s --health-retries 10
-      mailpit:
-        image: axllent/mailpit:latest
-        ports: ['1025:1025', '8025:8025']
-    env:
-      DATABASE_URL: postgres://app:app@localhost:5432/app
-      RABBITMQ_URL: amqp://guest:guest@localhost:5672
-      SMTP_HOST: localhost
-      SMTP_PORT: 1025
-      SMTP_FROM: notifications@example.com
-      LOG_LEVEL: info
+    uses: agusheryanto182/dev-bot/.github/workflows/claude.yml@v1
     permissions:
       contents: write
       pull-requests: write
       issues: write
       id-token: write
       actions: read
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 1
-
-      # The agent runs pnpm itself; keep in sync with packageManager in package.json.
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9.15.0
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 22
-
-      - uses: anthropics/claude-code-action@v1
-        with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          # To pay per token instead, remove the line above and use:
-          # anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          label_trigger: claude
-          base_branch: develop
-          claude_args: |
-            --model claude-sonnet-5-5
-            --max-turns 25
-            --allowedTools "Bash(pnpm:*)"
+    with:
+      runner: '"ubuntu-latest"'
+      trigger-user: agusheryanto182
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
