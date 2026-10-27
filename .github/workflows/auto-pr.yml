@@ -2,25 +2,31 @@ name: Auto PR
 
 # When the Claude agent pushes a claude/issue-N-* branch: open a PR to develop
 # (if none exists) and enable auto-merge, so it merges once CI is green.
+# Uses the bot app token, not GITHUB_TOKEN: actions done with GITHUB_TOKEN don't
+# close linked issues, delete the branch or trigger CI on develop.
 on:
   push:
     branches: ['claude/**']
 
 permissions:
-  contents: write
-  pull-requests: write
-  issues: read
+  contents: read
 
 jobs:
   open-pr:
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    env:
-      GH_TOKEN: ${{ github.token }}
-      GH_REPO: ${{ github.repository }}
-      BRANCH: ${{ github.ref_name }}
     steps:
+      - uses: actions/create-github-app-token@v2
+        id: app-token
+        with:
+          app-id: ${{ secrets.BOT_APP_ID }}
+          private-key: ${{ secrets.BOT_PRIVATE_KEY }}
+
       - name: Open PR and enable auto-merge
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
         run: |
           num=$(echo "$BRANCH" | sed -nE 's#^claude/issue-([0-9]+)-.*#\1#p')
           pr=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number')
@@ -35,4 +41,4 @@ jobs:
             gh pr create --base develop --head "$BRANCH" --title "$title" \
               --body "$body"$'\n\n'"Opened by the Auto PR workflow. Merges automatically once CI passes."
           fi
-          gh pr merge "$BRANCH" --auto --squash --delete-branch
+          gh pr merge "$BRANCH" --auto --squash
