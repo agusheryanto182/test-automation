@@ -5,5 +5,5 @@
     "lib": ["ES2023", "DOM"],
     "types": ["node", "react", "react-dom"]
   },
-  "include": ["src", "server"]
+  "include": ["src", "server", "app"]
 }

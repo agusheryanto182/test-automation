@@ -1,5 +1,24 @@
 import { describe, expect, it } from 'vitest';
-import { orderCreatedEventSchema, type OrderCreatedEvent } from './events.js';
+import {
+  createOrderInputSchema,
+  orderCreatedEventSchema,
+  type OrderCreatedEvent,
+} from './events.js';
+
+describe('createOrderInputSchema', () => {
+  const ok = { customerEmail: 'a@example.com', item: 'book', amount: 100 };
+
+  it('accepts valid input', () => {
+    expect(createOrderInputSchema.parse(ok)).toEqual(ok);
+  });
+
+  it.each([{ customerEmail: 'nope' }, { item: '' }, { amount: 0 }, { amount: 1.5 }])(
+    'rejects %j',
+    (override) => {
+      expect(createOrderInputSchema.safeParse({ ...ok, ...override }).success).toBe(false);
+    },
+  );
+});
 
 const valid: OrderCreatedEvent = {
   eventId: crypto.randomUUID(),
