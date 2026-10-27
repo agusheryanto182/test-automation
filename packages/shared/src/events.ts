@@ -14,5 +14,12 @@ export const orderCreatedEventSchema = z.object({
   payload: orderCreatedPayloadSchema,
 });
 
+export const createOrderInputSchema = z.object({
+  customerEmail: z.email(),
+  item: z.string().min(1),
+  amount: z.number().int().positive(),
+});
+
+export type CreateOrderInput = z.infer<typeof createOrderInputSchema>;
 export type OrderCreatedPayload = z.infer<typeof orderCreatedPayloadSchema>;
 export type OrderCreatedEvent = z.infer<typeof orderCreatedEventSchema>;
