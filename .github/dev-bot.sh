@@ -1,33 +1,31 @@
-# dev-bot config for this repo. dev-bot's workflows source this file (bash)
-# after checkout. Everything is optional; delete what you don't need.
-#
-# Available when it's sourced:
-#   CI_PORT               a free-ish host port for this run (40000-49999).
-#                         Use CI_PORT, CI_PORT+1, ... if you need several.
-#   COMPOSE_PROJECT_NAME  unique per run, so `docker compose` never clashes
-#                         with stacks already running on the runner.
+# dev-bot config for this repo, sourced (bash) by dev-bot's workflows after
+# checkout. See https://github.com/agusheryanto182/dev-bot#configure-a-repo.
 
-# Node.js version for actions/setup-node.
 # shellcheck disable=SC2034 # read by the workflows
-node_version=24
+node_version=22
 
-# Env vars for every step, one KEY=VALUE per line.
+# Host ports for docker-compose.yml, unique per run, plus what the app reads.
 ci_env() {
-  : # echo "PG_PORT=$CI_PORT"
-  : # echo "DATABASE_URL=postgres://app:app@localhost:$CI_PORT/app"
+  echo "PG_PORT=$CI_PORT"
+  echo "RABBITMQ_PORT=$((CI_PORT + 1))"
+  echo "RABBITMQ_UI_PORT=$((CI_PORT + 2))"
+  echo "SMTP_PORT=$((CI_PORT + 3))"
+  echo "MAILPIT_UI_PORT=$((CI_PORT + 4))"
+  echo "DATABASE_URL=postgres://app:app@localhost:$CI_PORT/app"
+  echo "RABBITMQ_URL=amqp://guest:guest@localhost:$((CI_PORT + 1))"
+  echo "SMTP_HOST=localhost"
+  echo "SMTP_FROM=notifications@example.com"
+  echo "LOG_LEVEL=info"
 }
 
-# Start services before install and tests.
 setup() {
-  : # docker compose up -d --wait
+  docker compose up -d --wait
 }
 
-# Checks CI runs after `pnpm install --frozen-lockfile`. Default: pnpm test.
 check() {
-  pnpm test
+  pnpm lint && pnpm typecheck && pnpm test
 }
 
-# Always runs at the end, also after failures.
 teardown() {
-  : # docker compose down -v --remove-orphans
+  docker compose down -v --remove-orphans
 }
